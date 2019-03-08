@@ -1,0 +1,1 @@
+https://github.com/githubixx/ansible-role-kubectl/blob/r6.0.1_v1.13.0/defaults/main.yml
