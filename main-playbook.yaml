@@ -5,6 +5,9 @@
    #remote_user: root
    vars:
      linux_amd64_query: 'assets[?ends_with(name, "linux_amd64")].browser_download_url'
+   pre_tasks:
+     - name: 'Get apt list'
+       raw: sudo apt-get update && sudo apt-get -y install python
    roles:
      - { role: "githubixx.kubectl", tags: ["kubectl"] } 
      - { role: "nickjj.user", tags: ["user"] } 
