@@ -1,0 +1,48 @@
+---
+ - 
+   hosts: all
+   become: yes
+   vars:
+     users: ccpuser
+
+   tasks:
+   - name: Install packages 
+     apt:
+       name: "{{packages}}"
+     vars:
+       packages:
+         - curl 
+         - python-pip
+         - ruby
+         - wget
+         - jq
+         - bash-completion
+         - apt-transport-https
+         - sudo
+         - gnupg2
+         - git
+         - tmux
+
+   - name: Create /data/ directory
+     file:
+       path: /data
+       state: directory
+       mode: 0755
+       group: root
+       owner: root
+
+   - name: Install SAPDH scripts
+     copy:
+       src:  scripts/SAPDH
+       dest: /data
+       mode: "0755"
+       owner: ccpuser
+       group: ccpuser
+
+   - name: Install SAPDH helper scripts
+     copy:
+       src:  binaries/
+       dest: /usr/local/bin/
+       mode: "0755"
+       owner: root
+       group: root

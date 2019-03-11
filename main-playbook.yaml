@@ -14,12 +14,6 @@
      - { role: "nickjj.docker", tags: ["docker"] } 
 
    tasks:
-#   - name: Install Google skaffold
-#     get_url:
-#       url: https://github.com/GoogleContainerTools/skaffold/releases/download/v0.20.0/skaffold-linux-amd64
-#       dest: /usr/local/bin/skaffold
-#       mode: 555
-
    - name: Install packages - pass1
      apt:
        name: "{{packages}}"
@@ -44,14 +38,6 @@
        body_format: json
      register: aia_response
 
-#   - name: The json_response
-#     debug:
-#       var: json_response.json
-#
-#          - name: Running a simple filter
-#            debug:
-#              var: " {{ json_response.json |to_json | from_json | json_query(\"assets[?ends_with(name,'linux_amd64')].browser_download_url | [0]\") }} "
-
    - name: Download and install aws-iam-authenticator
      get_url:
        url: " {{ aia_response.json | to_json | from_json| json_query(\"assets[?ends_with(name,'linux_amd64')].browser_download_url | [0]\") }}"
@@ -64,7 +50,6 @@
        return_content: true
        body_format: json
      register: skaffold_response
- 
 
    - name: Download and install skaffold
      get_url:
@@ -79,16 +64,6 @@
    - name: Install awscli
      pip: 
        name: awscli
-
-# - hosts: localhost
-#   become: yes
-#
-#   vars:
-#     minio_server_datadirs: ["/data/minio"]
-#     minio_access_key: "minioaccess"
-#     minio_secret_key: "miniosecret"
-#   roles:
-#     - atosatto.minio
 
    - name: Place custom tmux config
      copy:
