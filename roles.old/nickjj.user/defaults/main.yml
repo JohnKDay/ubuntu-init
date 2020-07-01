@@ -1,7 +1,7 @@
 ---
 
 user_groups: ["docker"]
-user_name: ["ccpuser","ccpguest"]
+user_name: ["ccpuser","ccpguest","dseevr"]
 user_shell: "/bin/bash"
 
 user_generate_ssh_key: False

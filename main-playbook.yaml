@@ -1,90 +1,167 @@
 ---
- - 
-   hosts: all
-   become: yes
-   #remote_user: root
-   vars:
-     linux_amd64_query: 'assets[?ends_with(name, "linux_amd64")].browser_download_url'
-   pre_tasks:
-     - name: 'Get apt list'
-       raw: sudo apt-get update && sudo apt-get -y install python
-   roles:
-     - { role: "githubixx.kubectl", tags: ["kubectl"] } 
-     - { role: "nickjj.user", tags: ["user"] } 
-     - { role: "nickjj.docker", tags: ["docker"] } 
+- hosts: all
+  become: yes
+  #remote_user: root
+  vars:
+    linux_amd64_query: 'assets[?ends_with(name, "linux_amd64")].browser_download_url'
+  pre_tasks:
+    - name: "Get apt list"
+      raw: sudo apt-get update && sudo apt-get -y install python
+  roles:
+    #     - { role: "githubixx.kubectl", tags: ["kubectl"] }
+    #     - { role: "nickjj.user", tags: ["user"] }
+    #     - { role: "nickjj.docker", tags: ["docker"] }
+    - role: docker
+      docker_insecure_registries:
+        ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+      docker_users: ["archon"]
 
-   tasks:
-   - name: Install packages - pass1
-     apt:
-       name: "{{packages}}"
-     vars:
-       packages:
-         - curl 
-         - python-pip
-         - ruby
-         - wget
-         - jq
-         - bash-completion
-         - apt-transport-https
-         - sudo
-         - gnupg2
-         - git
-         - tmux
+  tasks:
+    - name: Install packages - pass1
+      apt:
+        name: "{{packages}}"
+      vars:
+        packages:
+          - curl
+          - python-pip
+          - ruby
+          - wget
+          - jq
+          - bash-completion
+          - apt-transport-https
+          - sudo
+          - gnupg2
+          - git
+          - tmux
+          - software-properties-common
 
-   - name: Get latest url for linux-amd64 release for aws-iam-authenticator
-     uri:
-       url: https://api.github.com/repos/kubernetes-sigs/aws-iam-authenticator/releases/latest
-       return_content: true
-       body_format: json
-     register: aia_response
+    - name: Get latest url for linux-amd64 release for aws-iam-authenticator
+      uri:
+        url: https://api.github.com/repos/kubernetes-sigs/aws-iam-authenticator/releases/latest
+        return_content: true
+        body_format: json
+      register: aia_response
 
-   - name: Download and install aws-iam-authenticator
-     get_url:
-       url: " {{ aia_response.json | to_json | from_json| json_query(\"assets[?ends_with(name,'linux_amd64')].browser_download_url | [0]\") }}"
-       mode: 555
-       dest: /usr/local/bin/aws-iam-authenticator
+    - name: Download and install aws-iam-authenticator
+      get_url:
+        url: ' {{ aia_response.json | to_json | from_json| json_query("assets[?ends_with(name,''linux_amd64'')].browser_download_url | [0]") }}'
+        mode: 555
+        dest: /usr/local/bin/aws-iam-authenticator
 
-   - name: Get latest url for linux-amd64 release for skaffold
-     uri:
-       url: https://api.github.com/repos/GoogleContainerTools/skaffold/releases/latest
-       return_content: true
-       body_format: json
-     register: skaffold_response
+    - name: Get latest url for linux-amd64 release for skaffold
+      uri:
+        url: https://api.github.com/repos/GoogleContainerTools/skaffold/releases/latest
+        return_content: true
+        body_format: json
+      register: skaffold_response
 
-   - name: Download and install skaffold
-     get_url:
-       url: "{{ skaffold_response.json | to_json | from_json| json_query(\"assets[?ends_with(name,'linux-amd64')].browser_download_url | [0]\") }}"
-       mode: 555
-       dest: /usr/local/bin/skaffold
-     debugger: on_failed
+    - name: Download and install skaffold
+      get_url:
+        url: '{{ skaffold_response.json | to_json | from_json| json_query("assets[?ends_with(name,''linux-amd64'')].browser_download_url | [0]") }}'
+        mode: 555
+        dest: /usr/local/bin/skaffold
+      debugger: on_failed
 
-   - name: Install helm
-     script: scripts/install-helm.sh --version v2.11.0
+    #   - name: Install helm
+    #     script: scripts/install-helm.sh --version v2.12.3
+    #
+    #   - name: Install awscli
+    #     pip:
+    #       name: awscli
+    - name: Add repo key for Xpra
+      apt_key:
+        url: https://xpra.org/gpg.asc
+        state: present
 
-   - name: Install awscli
-     pip: 
-       name: awscli
+    - name: Add Xpra repository to sources directory
+      apt_repository:
+        repo: deb https://xpra.org/ bionic main
+        state: present
+        update_cache: yes
+        mode: 0644
+        validate_certs: yes
+        filename: Xpra
 
-   - name: Place custom tmux config
-     copy:
-       src: scripts/tmux.conf
-       dest: /etc/tmux.conf
-       owner: root
-       group: root
-       mode: 0644
+    - name: Add repo key for Kubernetes
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present # not required. choices: absent;present. Ensures that the key is present (added) or absent (revoked).
+        validate_certs: yes # not required. If C(no), SSL certificates for the target url will not be validated. This should only be used on personally controlled sites using self-signed certificates.
 
-   - name: Enable IP forwarding
-     sysctl:
-       name: net.ipv4.ip_forward
-       value: 1
-       sysctl_set: yes
-       state: present
-       reload: yes
+    - name: Add Kubernetes repository to sources directory
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        update_cache: yes
+        mode: 0644
+        validate_certs: yes
+        filename: kubernetes
 
-   - name: Disable all ipv6
-     sysctl:
-       name: net.ipv6.conf.all.disable_ipv6
-       value: 1
-       sysctl_set: yes
-       state: present
-       reload: yes
+    - name: Install more applictions - pass 2
+      apt:
+        name: "{{packages}}"
+      vars:
+        packages:
+          - xpra
+          - xpra-html5
+          - firefox
+          - sakura
+          - icewm
+          - kubectl
+
+    - name: Place custom tmux config
+      copy:
+        src: tmux.conf
+        dest: /etc/tmux.conf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Add autocomplete to .bashrc file
+      become: yes
+      become_user: archon
+      blockinfile:
+        path: $HOME/.bashrc
+        backup: yes
+        create: yes # not required. Create a new file if it doesn't exist.
+        state: present # not required. choices: absent;present. Whether the block should be there or not.
+        block: |
+          # Souce the bash completion for kubernetes
+          source <(kubectl completion bash)
+
+          alias kstat="watch -n 5 'kubectl get nodes -o wide; echo; kubectl get pods; echo; kubectl get svc | grep -v none' "
+          alias kstat2="watch -n 5 \"cat $KUBECONFIG | grep server\: ;echo ; kubectl get nodes -o wide; echo; kubectl get pods; echo; kubectl get svc | grep -v none\" "
+
+          alias k=kubectl
+          complete -F __start_kubectl k
+
+          # You can never have enough history
+          export HISTSIZE=10000
+
+          # Write every command from every bash to the history
+          shopt -s histappend
+          PROMPT_COMMAND="history -a;$PROMPT_COMMAND"
+
+    - name: Deploy icewm configuration
+      become: yes
+      become_user: archon
+      unarchive:
+        src: scripts/icewm-config.tar
+        dest: $HOME
+        list_files: yes
+
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        sysctl_set: yes
+        state: present
+        reload: yes
+
+    - name: Disable all ipv6
+      sysctl:
+        name: net.ipv6.conf.all.disable_ipv6
+        value: 1
+        sysctl_set: yes
+        state: present
+        reload: yes
