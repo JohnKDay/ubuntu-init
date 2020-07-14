@@ -13,8 +13,12 @@
     #     - { role: "nickjj.docker", tags: ["docker"] }
     - role: docker
       docker_insecure_registries:
-        ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+        ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"]
       docker_users: ["archon"]
+
+    - role: ansible-minio-master
+      minio_server_datadirs: [ "/minio" ]
+
 
   tasks:
     - name: Install packages - pass1
